@@ -40,6 +40,7 @@ else
     cp "$binary_dir/Slopup" "$app_dir/Contents/MacOS/Slopup"
 fi
 cp "$project_dir/Resources/Info.plist" "$app_dir/Contents/Info.plist"
+cp "$project_dir/Resources/AppIcon.icns" "$app_dir/Contents/Resources/AppIcon.icns"
 cp "$resource_dir/MenuBarIcon.svg" "$app_dir/Contents/Resources/MenuBarIcon.svg"
 for logo in "$resource_dir/"*.svg; do
     [[ "${logo:t}" == "MenuBarIcon.svg" ]] && continue
