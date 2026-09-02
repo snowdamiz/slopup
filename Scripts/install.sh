@@ -11,7 +11,6 @@ fail() {
     exit 1
 }
 
-[[ "$repository" != "__GITHUB_REPOSITORY__" ]] || fail "use the installer from a GitHub Release"
 [[ "$repository" =~ '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' ]] || fail "invalid GitHub repository: $repository"
 [[ "$install_dir" == /* && "$install_dir" != "/" && "$install_dir" != "$HOME" ]] || fail "install directory must be a safe absolute path"
 
