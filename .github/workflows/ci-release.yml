@@ -1,0 +1,56 @@
+name: CI and release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Test
+        run: swift test
+      - name: Build app
+        run: ./Scripts/build-app.sh release
+      - name: Verify app
+        run: codesign --verify --deep --strict build/Slopup.app
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build universal release
+        shell: zsh {0}
+        run: |
+          echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'
+          version="${GITHUB_REF_NAME#v}"
+          ./Scripts/build-app.sh release universal
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" build/Slopup.app/Contents/Info.plist
+          codesign --force --sign - build/Slopup.app
+          lipo build/Slopup.app/Contents/MacOS/Slopup -verify_arch arm64 x86_64
+      - name: Package release
+        shell: zsh {0}
+        run: |
+          mkdir dist
+          ditto -c -k --sequesterRsrc --keepParent build/Slopup.app dist/Slopup.zip
+          sed "s|__GITHUB_REPOSITORY__|$GITHUB_REPOSITORY|g" Scripts/install.sh > dist/install.sh
+          chmod +x dist/install.sh
+          cd dist
+          shasum -a 256 Slopup.zip > SHA256SUMS
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/Slopup.zip dist/install.sh dist/SHA256SUMS --verify-tag --generate-notes --title "Slopup ${GITHUB_REF_NAME#v}"
